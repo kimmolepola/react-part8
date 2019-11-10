@@ -14,13 +14,9 @@ const NewBook = ({ show, addBook }) => {
   const submit = async (e) => {
     e.preventDefault();
 
-    console.log('add book...', title, published, author, genres);
-
-    const publ = parseInt(published, 10);
-
     addBook({
       variables: {
-        title, publ, author, genres,
+        title, published, author, genres,
       },
     });
 
@@ -59,7 +55,7 @@ const NewBook = ({ show, addBook }) => {
           <input
             type="number"
             value={published}
-            onChange={({ target }) => setPublished(target.value)}
+            onChange={({ target }) => setPublished(parseInt(target.value, 10))}
           />
         </div>
         <div>

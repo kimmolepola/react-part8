@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useApolloClient } from 'react-apollo';
+import Select from 'react-select';
 
-const Authors = ({ show, result }) => {
+const Authors = ({ show, result, editAuthor }) => {
   const client = useApolloClient();
-
+  const [selected, setSelected] = useState('');
+  const [bornInput, setBornInput] = useState('');
   if (!show) {
     return null;
   }
@@ -13,6 +15,18 @@ const Authors = ({ show, result }) => {
   }
 
   const authors = result.data.allAuthors;
+  const options = authors.reduce((acc, cur) => acc.concat({ value: cur.name, label: cur.name }), []);
+
+  const submit = (e) => {
+    e.preventDefault();
+
+    editAuthor({
+      variables: {
+        name: selected.value,
+        born: bornInput,
+      },
+    });
+  };
 
   return (
     <div>
@@ -37,7 +51,13 @@ const Authors = ({ show, result }) => {
           ))}
         </tbody>
       </table>
-
+      <h3>Set birthyear</h3>
+      <Select value={selected} onChange={(x) => setSelected(x)} options={options} />
+      <form onSubmit={submit}>
+        born
+        <input value={bornInput} onChange={({ target }) => setBornInput(parseInt(target.value, 10))} />
+        <button type="submit">update author</button>
+      </form>
     </div>
   );
 };

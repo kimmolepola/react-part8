@@ -8,7 +8,13 @@ import NewBook from './components/NewBook';
 const App = () => {
   const ALL_AUTHORS = gql`{allAuthors{name born bookCount}}`;
   const ALL_BOOKS = gql`{allBooks{title, published, author}}`;
-  const CREATE_BOOK = gql`mutation createBook($title: String!, $published: Int, $author: String, $genres: [String!]){
+  const EDIT_AUTHOR = gql`mutation ($name: String!, $born: Int!){
+    editAuthor(
+      name: $name,
+      setBornTo: $born,
+    ){name, born, bookCount}
+  }`;
+  const CREATE_BOOK = gql`mutation ($title: String!, $published: Int, $author: String, $genres: [String!]){
     addBook(
       title: $title,
       published: $published,
@@ -22,12 +28,19 @@ const App = () => {
     }
   }`;
 
-  const handleError = () => {
-
+  const handleError = (x) => {
+    console.log(x);
   };
 
   const [page, setPage] = useState('authors');
-  const [addBook] = useMutation(CREATE_BOOK, { onError: handleError, refetchQueries: [{ query: ALL_AUTHORS }] });
+  const [editAuthor] = useMutation(EDIT_AUTHOR, {
+    onError: handleError,
+    refetchQueries: [{ query: ALL_AUTHORS }],
+  });
+  const [addBook] = useMutation(CREATE_BOOK, {
+    onError: handleError,
+    refetchQueries: [{ query: ALL_AUTHORS }, { query: ALL_BOOKS }],
+  });
   const books = useQuery(ALL_BOOKS);
   const authors = useQuery(ALL_AUTHORS);
 
@@ -41,6 +54,7 @@ const App = () => {
 
       <div>
         <Authors
+          editAuthor={editAuthor}
           result={authors}
           show={page === 'authors'}
         />
