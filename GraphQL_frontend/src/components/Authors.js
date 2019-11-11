@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { useApolloClient } from 'react-apollo';
 import Select from 'react-select';
 
-const Authors = ({ show, result, editAuthor }) => {
-  const client = useApolloClient();
+const Authors = ({ show, result, editAuthor, handleError }) => {
   const [selected, setSelected] = useState('');
   const [bornInput, setBornInput] = useState('');
   if (!show) {
@@ -20,12 +18,17 @@ const Authors = ({ show, result, editAuthor }) => {
   const submit = (e) => {
     e.preventDefault();
 
-    editAuthor({
-      variables: {
-        name: selected.value,
-        born: bornInput,
-      },
-    });
+    const bornInt = parseInt(bornInput, 10)
+    if (bornInt) {
+      editAuthor({
+        variables: {
+          name: selected.value,
+          born: bornInt,
+        },
+      });
+    } else {
+      handleError("input needs to be a number")
+    }
   };
 
   return (
@@ -55,7 +58,7 @@ const Authors = ({ show, result, editAuthor }) => {
       <Select value={selected} onChange={(x) => setSelected(x)} options={options} />
       <form onSubmit={submit}>
         born
-        <input value={bornInput} onChange={({ target }) => setBornInput(parseInt(target.value, 10))} />
+        <input value={bornInput} onChange={({ target }) => setBornInput(target.value)} />
         <button type="submit">update author</button>
       </form>
     </div>
