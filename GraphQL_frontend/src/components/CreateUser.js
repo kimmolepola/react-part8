@@ -13,6 +13,8 @@ const CreateUser = ({ show, createUser, handleNotification }) => {
         username, favGenre,
       },
     });
+    setUsername('');
+    setFavGenre('');
     handleNotification('submitted!');
   };
   return (

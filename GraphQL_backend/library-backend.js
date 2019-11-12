@@ -24,6 +24,23 @@ mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true 
 
 
 const typeDefs = gql`
+  type TokenAndUser {
+    token: String!
+    user: User!
+  }
+  type Author {
+    name: String!
+    id: ID
+    born: Int
+    bookCount: Int
+  }
+  type Book {
+    title: String!
+    published: Int!
+    author: Author!
+    genres: [String!]
+    id: ID!
+  }
   type User {
     username: String!
     favoriteGenre: String!
@@ -40,7 +57,7 @@ const typeDefs = gql`
     login(
       username: String!
       password: String!
-    ): Token
+    ): TokenAndUser
     editAuthor(
       name: String!
       setBornTo: Int!
@@ -51,19 +68,6 @@ const typeDefs = gql`
       published: Int
       genres: [String!]
     ): Book
-  }
-  type Author {
-    name: String!
-    id: ID
-    born: Int
-    bookCount: Int
-  }
-  type Book {
-    title: String!
-    published: Int!
-    author: Author!
-    genres: [String!]
-    id: ID!
   }
   type Query {
     me: User
@@ -86,7 +90,6 @@ const resolvers = {
     },
     login: async (root, args) => {
       const user = await User.findOne({ username: args.username });
-
       if (!user || args.password !== 'secred') {
         throw new UserInputError('wrong credentials');
       }
@@ -94,7 +97,7 @@ const resolvers = {
         username: user.username,
         id: user._id, // eslint-disable-line no-underscore-dangle
       };
-      return { value: jwt.sign(userForToken, JWT_SECRET) };
+      return {token: jwt.sign(userForToken, JWT_SECRET), user: user};
     },
     editAuthor: async (root, args, { currentUser }) => {
       if (!currentUser){
@@ -163,7 +166,7 @@ const server = new ApolloServer({
       const decodedToken = jwt.verify(
         auth.substring(7), JWT_SECRET,
       );
-      const currentUser = await User.findById(decodedToken.id).populate('friends');
+      const currentUser = await User.findById(decodedToken.id);
       return { currentUser };
     }
   },
