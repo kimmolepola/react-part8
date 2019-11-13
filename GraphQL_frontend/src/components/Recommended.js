@@ -1,25 +1,29 @@
 import React from 'react';
 import { useQuery } from 'react-apollo';
 
-const Recommended = ({show, bookResult, user }) => {
+const Recommended = ({show, user, ALL_BOOKS }) => {
+    const genre = user ? user.favoriteGenre : null;
+
+    const result = useQuery(ALL_BOOKS, { variables: { genre: user.favoriteGenre} });
+
     if (!show){
         return null;
     }
-    if (bookResult.loading || user === null){
+
+    if (result.loading){
         return <div>loading...</div>
-    } 
+    }
 
-    const books = bookResult.data.allBooks;
-    const matchingBooks = books.filter(x=> x.genres.includes(user.favoriteGenre));
+    const books = result.data.allBooks;
 
-    if (matchingBooks.length === 0){
-        return <div><p/>no books in your favorite genre <b>{user.favoriteGenre}</b></div>
+    if (!books || books.length === 0){
+        return <div><p/>no books in your favorite genre <b>{genre}</b></div>
     }
 
     return (
         <div>
             <h2>recommendations</h2>
-            books in your favorite genre <b>{user.favoriteGenre}</b>
+            books in your favorite genre <b>{genre}</b>
             <table>
                 <tbody>
                 <tr>
@@ -31,8 +35,8 @@ const Recommended = ({show, bookResult, user }) => {
                     <b>published</b>
                     </th>
                 </tr>
-                {matchingBooks.map((x) =>  (
-                        <tr key={x.title}>
+                {books.map((x, y) =>  (
+                        <tr key={x.title.concat(y)}>
                         <td>{x.title}</td>
                         <td>{x.author.name}</td>
                         <td>{x.published}</td>

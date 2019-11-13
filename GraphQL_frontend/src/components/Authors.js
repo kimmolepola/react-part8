@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Select from 'react-select';
 
-const Authors = ({ show, result, editAuthor, handleError, displayIfToken }) => {
+const Authors = ({ show, result, editAuthor, handleError, displayIfUser }) => {
   const [selected, setSelected] = useState('');
   const [bornInput, setBornInput] = useState('');
   if (!show) {
@@ -17,7 +17,6 @@ const Authors = ({ show, result, editAuthor, handleError, displayIfToken }) => {
 
   const submit = (e) => {
     e.preventDefault();
-
     const bornInt = parseInt(bornInput, 10)
     if (bornInt) {
       editAuthor({
@@ -31,20 +30,6 @@ const Authors = ({ show, result, editAuthor, handleError, displayIfToken }) => {
       handleError("input needs to be a number")
     }
   };
-
-  const SetBirthYear = () => {
-    return (
-      <div style={displayIfToken}>
-        <h3>Set birthyear</h3>
-              <Select value={selected} onChange={(x) => setSelected(x)} options={options} />
-              <form onSubmit={submit}>
-                born
-                <input value={bornInput} onChange={({ target }) => setBornInput(target.value)} />
-                <button type="submit">update author</button>
-              </form>
-      </div>
-    )
-  }
 
   return (
     <div>
@@ -69,7 +54,15 @@ const Authors = ({ show, result, editAuthor, handleError, displayIfToken }) => {
           ))}
         </tbody>
       </table>
-      <SetBirthYear />
+      <div style={displayIfUser}>
+      <h3>Set birthyear</h3>
+        <Select value={selected} onChange={(x) => setSelected(x)} options={options} />
+        <form onSubmit={submit}>
+          born
+          <input value={bornInput} onChange={({ target }) => setBornInput(target.value)} />
+          <button type="submit">update author</button>
+        </form>
+      </div>
     </div>
   );
 };

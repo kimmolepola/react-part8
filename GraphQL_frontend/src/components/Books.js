@@ -1,36 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useImperativeHandle } from 'react';
+import { useQuery } from 'react-apollo';
 
-const Books = ({ show, result }) => {
-  const [genre, setGenre] = useState(null);
+const Books = React.forwardRef(({ show, genresResult, ALL_BOOKS }, ref) => {
+  const [genre, setGenre] = useState('');
+
+  const resetGenre = () => {
+    setGenre('');
+  }
+
+  useImperativeHandle(ref, () => ({ resetGenre }));
+
+  const booksResult = useQuery(ALL_BOOKS, {variables: {genre: genre} });
+  
   if (!show) {
     return null;
   }
 
-  if (result.loading) {
-    return <div>loading...</div>;
+  if (booksResult.loading || genresResult.loading){
+    return <div>loading...</div>
   }
 
-  const books = result.data.allBooks;
-  const genres = Object.keys(books.reduce((acc, cur) => {
-    cur.genres.map(x => acc[x] = true);
-    return acc;
-  }, {}));
+  const books = booksResult.data.allBooks;
+  const genres = genresResult.data.allGenres;
 
   const Genres = () => {
     return (
     <div>
-      {genres.map(x=><button key={x} type="button" onClick={() => setGenre(x)}>{x}</button>)}
-      <button type="button" onClick={() => setGenre(null)}>all genres</button>
+      {genres.map(x=><button key={x} type="button" onClick={async () => {setGenre(x)}}>{x}</button>)}
+      <button type="button" onClick={() => resetGenre()}>all genres</button>
     </div>
     )
   }
 
-
-
   return (
     <div>
       <h2>books</h2>
-      <div style={{display: genre ? '' : 'none'}}>in genre <b>{genre}</b></div><p/>
+      <div style={{display: genre === '' ? 'none' : ''}}>in genre <b>{genre}</b></div><p/>
         <table>
         <tbody>
           <tr>
@@ -42,23 +47,20 @@ const Books = ({ show, result }) => {
               <b>published</b>
             </th>
           </tr>
-          {books.map((x) => {
-            if (genre === null || x.genres.includes(genre)){
-              return (
-                <tr key={x.title}>
+          {books.map((x, y) =>
+              (
+                <tr key={x.title.concat(y)}>
                   <td>{x.title}</td>
                   <td>{x.author.name}</td>
                   <td>{x.published}</td>
                 </tr>
               )
-            }
-            return null;
-          })}
+          )}
         </tbody>
       </table>
       <Genres />
     </div>
   );
-};
+});
 
 export default Books;

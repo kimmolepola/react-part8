@@ -13,8 +13,9 @@ const Login = ({ show, login, setToken, setPage }) => {
         username, password,
       },
     });
+
     if (result){
-      const token = result.data.login.token;
+      const token = result.data.login.value;
       setToken(token);
       localStorage.setItem('book-app-user-token', token);
       setUsername('');

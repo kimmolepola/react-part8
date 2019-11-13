@@ -24,10 +24,6 @@ mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true 
 
 
 const typeDefs = gql`
-  type TokenAndUser {
-    token: String!
-    user: User!
-  }
   type Author {
     name: String!
     id: ID
@@ -57,7 +53,7 @@ const typeDefs = gql`
     login(
       username: String!
       password: String!
-    ): TokenAndUser
+    ): Token
     editAuthor(
       name: String!
       setBornTo: Int!
@@ -70,6 +66,7 @@ const typeDefs = gql`
     ): Book
   }
   type Query {
+    allGenres: [String!]!
     me: User
     allAuthors: [Author!]!
     allBooks(author: String, genre: String): [Book!]!
@@ -97,7 +94,7 @@ const resolvers = {
         username: user.username,
         id: user._id, // eslint-disable-line no-underscore-dangle
       };
-      return {token: jwt.sign(userForToken, JWT_SECRET), user: user};
+      return {value: jwt.sign(userForToken, JWT_SECRET)};
     },
     editAuthor: async (root, args, { currentUser }) => {
       if (!currentUser){
@@ -147,11 +144,17 @@ const resolvers = {
   },
 
   Query: {
+    allGenres: async () =>
+      Object.keys((await Book.find({})).reduce((acc, cur) => {
+      cur.genres.map(x=>acc[x]=true);
+      return acc;
+      }, [])),
     me: (root, args, context) => context.currentUser,
     allAuthors: () => Author.find({}),
-    allBooks: (root, args) => (args.genre === undefined
+    allBooks: (root, args) => {
+      return args.genre === ''
       ? Book.find({}).populate('author')
-      : Book.find({ genres: { $in: [args.genre] } }).populate('author')),
+      : Book.find({ genres: { $in: [args.genre] } }).populate('author')},
     authorCount: () => Author.collection.countDocuments(),
     bookCount: () => Book.collection.countDocuments(),
   },
@@ -175,31 +178,6 @@ const server = new ApolloServer({
 server.listen().then(({ url }) => {
   console.log(`Server ready at ${url}`);
 });
-
-
-/* bookCount: (root) => books.reduce((acc, cur) => {
-  if (cur.author === root.name) {
-    return acc + 1;
-  }
-  return acc;
-}, 0),
- */
-
-/* if (args.author === undefined && args.genre === undefined) {
-  return books;
-}
-return books.reduce((acc, cur) => {
-  if (
-    (args.author === undefined && cur.genres.includes(args.genre))
-    || (args.author === cur.author && args.genre === undefined)
-    || (args.author === cur.author && cur.genres.includes(args.genre))
-  ) {
-    return acc.concat(cur);
-  }
-  return acc;
-}, []);
- */
-
 
 /*
 let authors = [

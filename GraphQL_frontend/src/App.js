@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useApolloClient, ApolloConsumer, Query } from 'react-apollo';
+import { useQuery, useMutation, useApolloClient } from 'react-apollo';
 import { gql } from 'apollo-boost';
 import Recommended from './components/Recommended';
 import Login from './components/Login';
@@ -9,22 +9,32 @@ import Books from './components/Books';
 import NewBook from './components/NewBook';
 
 const App = () => {
-  const [user, setUser] = useState(null);
+  
+  const client = useApolloClient();
+
+  const [user, setUser] = useState({ favoriteGenre: null });
   const [notification, setNotification] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [token, setToken] = useState(null);
   const [page, setPage] = useState('books');
+
+  useEffect(() => {
+    setToken(localStorage.getItem('book-app-user-token'));
+  },[])
+
+  const handleLogout = () => {
+    setToken(null);
+    localStorage.clear();
+    client.resetStore();
+    setPage('login');
+  };
+
   const handleNotification = (notific) => {
     setNotification(notific);
     setTimeout(() => {
       setNotification(null);
     }, 5000);
   }
-  useEffect(() => {
-      setToken(localStorage.getItem('book-app-user-token'));
-  },[])
-
-
 
   const handleError = (error) => {
     if (error.graphQLErrors && error.graphQLErrors[0]) {
@@ -37,9 +47,10 @@ const App = () => {
     }, 10000);
   };
 
+  const ALL_GENRES = gql`{allGenres}`;
   const ME = gql`{me{username, favoriteGenre}}`;
   const ALL_AUTHORS = gql`{allAuthors{name born bookCount}}`;
-  const ALL_BOOKS = gql`{allBooks{title, published, author{name}, genres}}`;
+  const ALL_BOOKS = gql`query allBooks($genre: String){allBooks(genre: $genre){title, published, author{name}, genres}}`;
   const EDIT_AUTHOR = gql`mutation ($name: String!, $born: Int!){
     editAuthor(
       name: $name,
@@ -72,8 +83,7 @@ const App = () => {
       username: $username,
       password: $password,
     ) {
-      token
-      user{username, favoriteGenre}
+      value
     }
   }`;
 
@@ -89,36 +99,33 @@ const App = () => {
   });
   const [addBook] = useMutation(CREATE_BOOK, {
     onError: handleError,
-    refetchQueries: [{ query: ALL_AUTHORS }, { query: ALL_BOOKS }],
+    refetchQueries: [
+      { query: ALL_AUTHORS }, 
+      { query: ALL_BOOKS, variables: { genre: '' } }, 
+      { query: ALL_BOOKS, variables: { genre: user.favoriteGenre } }, 
+      { query: ALL_GENRES }],
   });
 
-  const books = useQuery(ALL_BOOKS);
   const authors = useQuery(ALL_AUTHORS);
-
-  const client = useApolloClient();
-
-  const displayIfToken = {display: token ? '' : 'none'};
-  const displayIfNoToken = {display: token ? 'none' : '' };
-
-  const handleLogout = () => {
-    setToken(null);
-    localStorage.clear();
-    client.resetStore();
-    setPage('login');
-  };
+  const genresResult = useQuery(ALL_GENRES);
 
   useEffect(() => {
     if (token) {
-      const queryUser = async () => {
-        const usr = await client.query({ query: ME, fetchPolicy: 'no-cache' })
-        setUser(usr.data.me);
-        handleNotification(`logged in as ${usr.data.me.username}`)
+      const setupUser = async () => {
+        const usr = (await client.query({ query: ME, fetchPolicy: 'no-cache' })).data.me;
+        setUser(usr);
+        handleNotification(`logged in as ${usr.username}`)
       }
-      queryUser();
+      setupUser();
     } else {
-      setUser(null);       
+      setUser({ favoriteGenre: null });
     }
-  }, [token])
+  }, [token, ME, client])
+
+  const displayIfUser = {display: user ? '' : 'none'};
+  const displayIfNoUser = {display: user ? 'none' : '' };
+
+  const booksGenreResetRef = React.createRef();
 
   return (
     <div>
@@ -135,17 +142,20 @@ const App = () => {
         )}
       <div>
         <button type="button" onClick={() => setPage('authors')}>authors</button>
-        <button type="button" onClick={() => setPage('books')}>books</button>
-        <button style={displayIfToken} type="button" onClick={() => setPage('add')}>add book</button>
-        <button style={displayIfNoToken} type="button" onClick={() => setPage('createUser')}>register new user</button>
-        <button style={displayIfNoToken} type="button" onClick={() => setPage('login')}>login</button>
-        <button style={displayIfToken} type="button" onClick={() => setPage('recommended')}>recommended</button>
-        <button style={displayIfToken} type="button" onClick={() => handleLogout()}>logout</button>
+        <button type="button" onClick={() => {
+          setPage('books');
+          booksGenreResetRef.current.resetGenre();
+          }}>books</button>
+        <button style={displayIfUser} type="button" onClick={() => setPage('add')}>add book</button>
+        <button style={displayIfUser} type="button" onClick={() => setPage('recommended')}>recommended</button>
+        <button style={displayIfUser} type="button" onClick={() => handleLogout()}>logout</button>
+        <button style={displayIfNoUser} type="button" onClick={() => setPage('createUser')}>register new user</button>
+        <button style={displayIfNoUser} type="button" onClick={() => setPage('login')}>login</button>
       </div>
 
       <div>
         <Authors
-          displayIfToken={displayIfToken}
+          displayIfUser={displayIfUser}
           handleError={handleError}
           editAuthor={editAuthor}
           result={authors}
@@ -153,7 +163,9 @@ const App = () => {
         />
 
         <Books
-          result={books}
+          ref={booksGenreResetRef}
+          ALL_BOOKS={ALL_BOOKS}
+          genresResult={genresResult}
           show={page === 'books'}
         />
 
@@ -164,8 +176,9 @@ const App = () => {
         />
 
         <Recommended
+          client={client}
+          ALL_BOOKS={ALL_BOOKS}
           user={user}
-          bookResult={books}
           show={page === 'recommended'}
         />
 
@@ -178,7 +191,6 @@ const App = () => {
         <Login
           setPage={setPage}
           setToken={setToken}
-          handleNotification={handleNotification}
           login={login}
           show={page === 'login'}
         />
