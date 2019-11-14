@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useApolloClient } from 'react-apollo';
+import { useQuery, useMutation, useSubscription, useApolloClient } from 'react-apollo';
 import { gql } from 'apollo-boost';
 import Recommended from './components/Recommended';
 import Login from './components/Login';
@@ -33,7 +33,7 @@ const App = () => {
     setNotification(notific);
     setTimeout(() => {
       setNotification(null);
-    }, 5000);
+    }, 10000);
   }
 
   const handleError = (error) => {
@@ -47,10 +47,27 @@ const App = () => {
     }, 10000);
   };
 
+  const BOOK_DETAILS = gql`
+    fragment BookDetails on Book {
+      title
+      published
+      author {name}
+      genres
+      id
+    }
+  `
   const ALL_GENRES = gql`{allGenres}`;
   const ME = gql`{me{username, favoriteGenre}}`;
   const ALL_AUTHORS = gql`{allAuthors{name born bookCount}}`;
-  const ALL_BOOKS = gql`query allBooks($genre: String){allBooks(genre: $genre){title, published, author{name}, genres}}`;
+  const ALL_BOOKS = gql`query allBooks($genre: String){allBooks(genre: $genre){title, published, author{name}, genres, id}}`;
+  const BOOK_ADDED = gql`
+    subscription {
+      bookAdded {
+        ...BookDetails
+      }
+    }
+    ${BOOK_DETAILS}
+    `
   const EDIT_AUTHOR = gql`mutation ($name: String!, $born: Int!){
     editAuthor(
       name: $name,
@@ -68,6 +85,7 @@ const App = () => {
       published
       author {name}
       genres
+      id
     }
   }`;
   const CREATE_USER = gql`mutation createUser($username: String!, $favGenre: String!){
@@ -87,6 +105,15 @@ const App = () => {
     }
   }`;
 
+  useSubscription(BOOK_ADDED, {
+    onSubscriptionData: ({ subscriptionData }) => {
+      const book = subscriptionData.data.bookAdded;
+      const content = `title: ${book.title}, author: ${book.author.name}, published: ${book.published}, genres: ${book.genres.join(', ')}`
+      handleNotification(`book added: ${content}`)
+      setPage('books')
+    }
+  })
+
   const [login] = useMutation(LOGIN, {
     onError: handleError,
   });
@@ -101,7 +128,7 @@ const App = () => {
     onError: handleError,
     refetchQueries: [
       { query: ALL_AUTHORS }, 
-      { query: ALL_BOOKS, variables: { genre: '' } }, 
+      { query: ALL_BOOKS, variables: { genre: '' } },
       { query: ALL_BOOKS, variables: { genre: user.favoriteGenre } }, 
       { query: ALL_GENRES }],
   });
@@ -170,7 +197,6 @@ const App = () => {
         />
 
         <NewBook
-          handleNotification={handleNotification}
           addBook={addBook}
           show={page === 'add'}
         />

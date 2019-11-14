@@ -1,10 +1,11 @@
-const { ApolloServer, UserInputError, AuthenticationError, gql } = require('apollo-server');
+const { ApolloServer, UserInputError, AuthenticationError, gql, PubSub } = require('apollo-server');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const User = require('./models/User');
 const Author = require('./models/Author');
 const Book = require('./models/Book');
 
+const pubsub = new PubSub();
 const JWT_SECRET = 'secret_key_123';
 
 mongoose.set('useFindAndModify', false);
@@ -44,6 +45,9 @@ const typeDefs = gql`
   }
   type Token {
     value: String!
+  }
+  type Subscription {
+    bookAdded: Book!
   }
   type Mutation {
     createUser(
@@ -118,7 +122,7 @@ const resolvers = {
       }
       let authorObj = await Author.findOne({ name: args.author });
       if (!authorObj) {
-        authorObj = new Author({ name: args.author });
+        authorObj = new Author({ name: args.author, bookCount: 0 });
         authorObj = await authorObj.save();
       }
       const book = new Book({ ...args, author: authorObj });
@@ -129,11 +133,20 @@ const resolvers = {
           invalidArgs: args,
         });
       }
+      authorObj.bookCount = authorObj.bookCount + 1;
+      authorObj.save();
+      pubsub.publish('BOOK_ADDED', { bookAdded: book });
       return book;
     },
   },
 
-  Author: {
+  Subscription: {
+    bookAdded: {
+      subscribe: () => pubsub.asyncIterator(['BOOK_ADDED']),
+    },
+  },
+
+/*   Author: {
     name: (root) => root.name,
     id: (root) => root.id,
     born: (root) => root.born,
@@ -142,7 +155,7 @@ const resolvers = {
       return books.length;
     },
   },
-
+ */
   Query: {
     allGenres: async () =>
       Object.keys((await Book.find({})).reduce((acc, cur) => {
@@ -175,8 +188,9 @@ const server = new ApolloServer({
   },
 });
 
-server.listen().then(({ url }) => {
+server.listen().then(({ url, subscriptionsUrl }) => {
   console.log(`Server ready at ${url}`);
+  console.log(`Subscriptions ready at ${subscriptionsUrl}`);
 });
 
 /*

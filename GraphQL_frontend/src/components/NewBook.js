@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const NewBook = ({ show, addBook, handleNotification }) => {
+const NewBook = ({ show, addBook }) => {
   const [title, setTitle] = useState('');
   const [author, setAuhtor] = useState('');
   const [published, setPublished] = useState('');
@@ -20,7 +20,6 @@ const NewBook = ({ show, addBook, handleNotification }) => {
       },
     });
 
-    handleNotification('submitted!')
     setTitle('');
     setPublished('');
     setAuhtor('');
